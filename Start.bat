@@ -70,7 +70,7 @@ ECHO.
 IF !EXIT_CODE! EQU 0 (
     ECHO ============================================================
     ECHO [OK] Script completed successfully
-    ECHO Need support? support@greev.com (EUR 499/year)
+    ECHO "Need support? support@greev.com (EUR 499/year)"
     ECHO ============================================================
 ) ELSE (
     ECHO ============================================================

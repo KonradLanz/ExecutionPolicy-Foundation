@@ -1,0 +1,2097 @@
+diff --git a/StartWithGithub.ps1 b/StartWithGithub.ps1
+index 6cb977c..7a8a284 100644
+--- a/StartWithGithub.ps1
++++ b/StartWithGithub.ps1
+@@ -8,21 +8,144 @@ param(
+     [string]$GitUsername = "KonradLanz",
+     [string]$GitEmail = "office@greev.com",
+     [string]$TargetDir = "C:\Users\koni\ExecutionPolicy-Foundation",
++    [string]$Language = "en",
+     [switch]$SkipInstall = $false,
++    [switch]$SkipAuth = $false,
+     [switch]$DryRun = $false
+ )
+ 
+ # Initialize
+ $LASTEXITCODE = 0
++$global:LASTEXITCODE = 0
+ [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+ 
++# ============================================================
++# LOCALIZATION (EN / DE)
++# ============================================================
++
++$Language = if ($Language -eq "de") { "de" } else { "en" }
++
++$Strings = @{
++    en = @{
++        title                   = "ExecutionPolicy Foundation - Git Setup & GitHub Upload"
++        subtitle                = "v2.0.0 | GrEEV.com KG | Support: support@greev.com"
++        step_1                  = "[STEP 1/7] Checking dependencies..."
++        step_2                  = "[STEP 2/7] Configuring Git..."
++        step_3                  = "[STEP 3/7] GitHub authentication..."
++        step_4                  = "[STEP 4/7] Setting up Git line endings..."
++        step_5                  = "[STEP 5/7] Preparing working directory..."
++        step_6                  = "[STEP 6/7] Creating Git commit and push..."
++        step_7                  = "[STEP 7/7] Finalizing..."
++        
++        installing              = "Installing {0}..."
++        already_installed       = "Already installed"
++        git_installed           = "Git installed"
++        github_cli_installed    = "GitHub CLI installed"
++        checking_auth           = "Checking GitHub authentication..."
++        need_token              = "GitHub token required"
++        token_setup             = "Please set up GitHub authentication:"
++        token_option_1          = "1. Run: gh auth login"
++        token_option_2          = "2. Or set GH_TOKEN environment variable"
++        token_info              = "After setup, run this script again"
++        crlf_warning            = "Configuring Git line endings (CRLF warnings are normal on Windows)"
++        git_user_set            = "Git User: {0}"
++        git_email_set           = "Git Email: {0}"
++        git_branch_set          = "Default Branch: main"
++        skip_install_msg        = "Installation skipped (--SkipInstall)"
++        skip_auth_msg           = "Authentication skipped (--SkipAuth)"
++        antivirus_note          = "NOTE: Antivirus may flag this script. Add to whitelist if needed:"
++        antivirus_avast         = "Avast: Settings > Exceptions > Add folder"
++        antivirus_defender      = "Windows Defender: Settings > Virus & threat protection > Exclusions"
++        working_dir_exists      = "Working directory exists: {0}"
++        working_dir_created     = "Working directory created: {0}"
++        git_repo_init           = "Initializing Git repository..."
++        git_repo_exists         = "Git repository already exists"
++        staging_files           = "[GIT] Staging all files..."
++        creating_commit         = "[GIT] Creating commit..."
++        pushing_repo            = "[GIT] Pushing to GitHub..."
++        repo_exists             = "Repository already exists, pushing..."
++        repo_created            = "Repository created and pushed"
++        repo_creation_failed    = "Repository creation may have failed"
++        no_changes              = "No changes to commit"
++        dry_run_mode            = "[DRY-RUN] Push skipped"
++        finished                = "FINISHED!"
++        github_url              = "GitHub Repository:"
++        opening_browser         = "Opening repository in browser..."
++        support_info            = "Professional Support: support@greev.com | EUR 499/year"
++        license_info            = "License: AGPL-3.0-or-later OR MIT"
++        error_git_install       = "Git could not be installed!"
++        error_git_missing       = "Git not found!"
++    }
++    de = @{
++        title                   = "ExecutionPolicy Foundation - Git Setup & GitHub Upload"
++        subtitle                = "v2.0.0 | GrEEV.com KG | Support: support@greev.com"
++        step_1                  = "[SCHRITT 1/7] Abhängigkeiten überprüfen..."
++        step_2                  = "[SCHRITT 2/7] Git konfigurieren..."
++        step_3                  = "[SCHRITT 3/7] GitHub Authentifizierung..."
++        step_4                  = "[SCHRITT 4/7] Git Zeilenumbruch konfigurieren..."
++        step_5                  = "[SCHRITT 5/7] Arbeitsverzeichnis vorbereiten..."
++        step_6                  = "[SCHRITT 6/7] Git Commit und Push..."
++        step_7                  = "[SCHRITT 7/7] Abschluss..."
++        
++        installing              = "Installiere {0}..."
++        already_installed       = "Bereits installiert"
++        git_installed           = "Git installiert"
++        github_cli_installed    = "GitHub CLI installiert"
++        checking_auth           = "Überprüfe GitHub Authentifizierung..."
++        need_token              = "GitHub Token erforderlich"
++        token_setup             = "Bitte GitHub Authentifizierung einrichten:"
++        token_option_1          = "1. Führe aus: gh auth login"
++        token_option_2          = "2. Oder setze GH_TOKEN Umgebungsvariable"
++        token_info              = "Nach dem Setup dieses Skript erneut ausführen"
++        crlf_warning            = "Konfiguriere Git Zeilenumbrüche (CRLF-Warnungen sind normal unter Windows)"
++        git_user_set            = "Git Benutzer: {0}"
++        git_email_set           = "Git Email: {0}"
++        git_branch_set          = "Standard Branch: main"
++        skip_install_msg        = "Installation übersprungen (--SkipInstall)"
++        skip_auth_msg           = "Authentifizierung übersprungen (--SkipAuth)"
++        antivirus_note          = "HINWEIS: Antivirus könnte dieses Skript flaggen. Zur Whitelist hinzufügen:"
++        antivirus_avast         = "Avast: Einstellungen > Ausnahmen > Ordner hinzufügen"
++        antivirus_defender      = "Windows Defender: Einstellungen > Viren- und Bedrohungsschutz > Ausnahmen"
++        working_dir_exists      = "Arbeitsverzeichnis existiert: {0}"
++        working_dir_created     = "Arbeitsverzeichnis erstellt: {0}"
++        git_repo_init           = "Initialisiere Git Repository..."
++        git_repo_exists         = "Git Repository existiert bereits"
++        staging_files           = "[GIT] Staging alle Dateien..."
++        creating_commit         = "[GIT] Erstelle Commit..."
++        pushing_repo            = "[GIT] Push zu GitHub..."
++        repo_exists             = "Repository existiert bereits, pushe..."
++        repo_created            = "Repository erstellt und gepusht"
++        repo_creation_failed    = "Repository-Erstellung könnte fehlgeschlagen sein"
++        no_changes              = "Keine Änderungen zum Commit"
++        dry_run_mode            = "[DRY-RUN] Push übersprungen"
++        finished                = "FERTIG!"
++        github_url              = "GitHub Repository:"
++        opening_browser         = "Öffne Repository im Browser..."
++        support_info            = "Professional Support: support@greev.com | EUR 499/Jahr"
++        license_info            = "Lizenz: AGPL-3.0-or-later OR MIT"
++        error_git_install       = "Git konnte nicht installiert werden!"
++        error_git_missing       = "Git nicht gefunden!"
++    }
++}
++
++$Text = $Strings[$Language]
++
+ Write-Host ""
+ Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+-Write-Host "║  ExecutionPolicy Foundation - Git Setup & GitHub Upload    ║" -ForegroundColor Cyan
+-Write-Host "║  v2.0.0 | GrEEV.com KG | Support: support@greev.com        ║" -ForegroundColor Cyan
++Write-Host "║  $($Text.title)" -ForegroundColor Cyan
++Write-Host "║  $($Text.subtitle)" -ForegroundColor Cyan
+ Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+ Write-Host ""
+ 
++# ============================================================
++# ANTIVIRUS WARNING
++# ============================================================
++
++Write-Host $Text.antivirus_note -ForegroundColor Yellow
++Write-Host "  • $($Text.antivirus_avast)" -ForegroundColor Gray
++Write-Host "  • $($Text.antivirus_defender)" -ForegroundColor Gray
++Write-Host ""
++
+ # ============================================================
+ # FUNCTIONS
+ # ============================================================
+@@ -36,21 +159,18 @@ function Test-CommandExists {
+ function Invoke-WingetInstall {
+     param([string]$PackageId, [string]$PackageName)
+     
+-    Write-Host "  Installing $PackageName..." -ForegroundColor Yellow
++    Write-Host "  $($Text.installing -f $PackageName)" -ForegroundColor Yellow
+     
+-    # Use -h (silent) instead of --quiet (which doesn't exist)
+     & winget install $PackageId `
+         --accept-package-agreements `
+         --accept-source-agreements `
+         -h 2>&1 | Out-Null
+     
+     if ($LASTEXITCODE -ne 0) {
+-        Write-Host "  WARN Winget installation may have issues, but continuing..." -ForegroundColor Yellow
++        Write-Host "  ⚠ Winget may have issues, continuing..." -ForegroundColor Yellow
+     }
+     
+-    # Refresh PATH to pickup newly installed tools
+     $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+-    
+     Start-Sleep -Seconds 2
+ }
+ 
+@@ -58,119 +178,136 @@ function Invoke-WingetInstall {
+ # 1. INSTALLATION
+ # ============================================================
+ 
++Write-Host $Text.step_1 -ForegroundColor Yellow
++Write-Host ""
++
+ if (-not $SkipInstall) {
+-    Write-Host "[SCHRITT 1/5] Abhängigkeiten überprüfen..." -ForegroundColor Yellow
+-    Write-Host ""
+-    
+-    # Check and install Git
+     if (-not (Test-CommandExists "git")) {
+         Invoke-WingetInstall "Git.Git" "Git"
+     } else {
+-        Write-Host "  OK Git bereits installiert" -ForegroundColor Green
++        Write-Host "  ✓ $($Text.already_installed)" -ForegroundColor Green
+     }
+     
+-    # Verify Git installation
+     if (Test-CommandExists "git") {
+         $gitVersion = & git --version 2>&1
+-        Write-Host "  OK $gitVersion" -ForegroundColor Green
++        Write-Host "  ✓ $($Text.git_installed): $gitVersion" -ForegroundColor Green
+     } else {
+-        Write-Host "  X Git konnte nicht installiert werden!" -ForegroundColor Red
++        Write-Host "  ✗ $($Text.error_git_install)" -ForegroundColor Red
+         exit 1
+     }
+     
+-    # Check and install GitHub CLI
+     Write-Host ""
+     if (-not (Test-CommandExists "gh")) {
+         Invoke-WingetInstall "GitHub.cli" "GitHub CLI"
+     } else {
+-        Write-Host "  OK GitHub CLI bereits installiert" -ForegroundColor Green
++        Write-Host "  ✓ $($Text.already_installed)" -ForegroundColor Green
+     }
+     
+-    # Verify GitHub CLI installation
+     if (Test-CommandExists "gh") {
+         $ghVersion = & gh --version 2>&1
+-        Write-Host "  OK $ghVersion" -ForegroundColor Green
++        Write-Host "  ✓ $($Text.github_cli_installed): $ghVersion" -ForegroundColor Green
+     } else {
+-        Write-Host "  WARN GitHub CLI konnte nicht installiert werden. Versuche trotzdem weiterzumachen..." -ForegroundColor Yellow
++        Write-Host "  ⚠ GitHub CLI $($Text.error_git_install)" -ForegroundColor Yellow
+     }
+ } else {
+-    Write-Host "[SCHRITT 1/5] Installation übersprungen (--SkipInstall)" -ForegroundColor Yellow
++    Write-Host "  ℹ $($Text.skip_install_msg)" -ForegroundColor Cyan
+ }
+ 
+ # ============================================================
+-# 2. GIT KONFIGURATION
++# 2. GIT CONFIGURATION
+ # ============================================================
+ 
+ Write-Host ""
+-Write-Host "[SCHRITT 2/5] Git konfigurieren..." -ForegroundColor Yellow
++Write-Host $Text.step_2 -ForegroundColor Yellow
+ 
+-& git config --global user.name $GitUsername
+-& git config --global user.email $GitEmail
+-& git config --global init.defaultBranch main
++& git config --global user.name $GitUsername 2>&1 | Out-Null
++& git config --global user.email $GitEmail 2>&1 | Out-Null
++& git config --global init.defaultBranch main 2>&1 | Out-Null
+ 
+-Write-Host "  OK Git User: $GitUsername" -ForegroundColor Green
+-Write-Host "  OK Git Email: $GitEmail" -ForegroundColor Green
+-Write-Host "  OK Default Branch: main" -ForegroundColor Green
++Write-Host "  ✓ $($Text.git_user_set -f $GitUsername)" -ForegroundColor Green
++Write-Host "  ✓ $($Text.git_email_set -f $GitEmail)" -ForegroundColor Green
++Write-Host "  ✓ $($Text.git_branch_set)" -ForegroundColor Green
+ 
+ # ============================================================
+ # 3. GITHUB AUTHENTICATION
+ # ============================================================
+ 
+ Write-Host ""
+-Write-Host "[SCHRITT 3/5] GitHub Authentifizierung..." -ForegroundColor Yellow
++Write-Host $Text.step_3 -ForegroundColor Yellow
+ 
+ if (Test-CommandExists "gh") {
+-    # Check if already authenticated
++    Write-Host "  $($Text.checking_auth)" -ForegroundColor Cyan
+     $authStatus = & gh auth status 2>&1
+-    if ($LASTEXITCODE -ne 0) {
+-        Write-Host "  Opening browser for GitHub authentication..." -ForegroundColor Yellow
+-        & gh auth login --web 2>&1 | Out-Null
+-        Write-Host "  OK GitHub Auth fertig" -ForegroundColor Green
++    
++    if ($LASTEXITCODE -ne 0 -and -not $SkipAuth) {
++        Write-Host "  ⚠ $($Text.need_token)" -ForegroundColor Yellow
++        Write-Host ""
++        Write-Host "  $($Text.token_setup):" -ForegroundColor Yellow
++        Write-Host "    • $($Text.token_option_1)" -ForegroundColor Cyan
++        Write-Host "    • $($Text.token_option_2)" -ForegroundColor Cyan
++        Write-Host ""
++        Write-Host "  $($Text.token_info)" -ForegroundColor Yellow
++        Write-Host ""
++        exit 1
++    } elseif ($SkipAuth) {
++        Write-Host "  ℹ $($Text.skip_auth_msg)" -ForegroundColor Cyan
+     } else {
+-        Write-Host "  OK Bereits authentifiziert" -ForegroundColor Green
++        Write-Host "  ✓ GitHub authenticated" -ForegroundColor Green
+     }
+ } else {
+-    Write-Host "  WARN GitHub CLI nicht verfügbar - überspringe GitHub Auth" -ForegroundColor Yellow
++    Write-Host "  ⚠ GitHub CLI not available" -ForegroundColor Yellow
+ }
+ 
+ # ============================================================
+-# 4. ARBEITSVERZEICHNIS VORBEREITEN
++# 4. CONFIGURE GIT LINE ENDINGS (CRLF)
+ # ============================================================
+ 
+ Write-Host ""
+-Write-Host "[SCHRITT 4/5] Arbeitsverzeichnis vorbereiten..." -ForegroundColor Yellow
++Write-Host $Text.step_4 -ForegroundColor Yellow
++Write-Host "  $($Text.crlf_warning)" -ForegroundColor Cyan
++
++& git config --global core.safecrlf warn 2>&1 | Out-Null
++& git config --global core.autocrlf true 2>&1 | Out-Null
++
++Write-Host "  ✓ core.autocrlf = true" -ForegroundColor Green
++Write-Host "  ✓ core.safecrlf = warn" -ForegroundColor Green
++
++# ============================================================
++# 5. PREPARE WORKING DIRECTORY
++# ============================================================
++
++Write-Host ""
++Write-Host $Text.step_5 -ForegroundColor Yellow
+ 
+ if (-not (Test-Path $TargetDir)) {
+     New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+-    Write-Host "  OK Verzeichnis erstellt: $TargetDir" -ForegroundColor Green
++    Write-Host "  ✓ $($Text.working_dir_created -f $TargetDir)" -ForegroundColor Green
+ } else {
+-    Write-Host "  OK Verzeichnis existiert: $TargetDir" -ForegroundColor Green
++    Write-Host "  ✓ $($Text.working_dir_exists -f $TargetDir)" -ForegroundColor Green
+ }
+ 
+ Push-Location $TargetDir
+ 
+-# Initialize git repository if not already initialized
+ if (-not (Test-Path "$TargetDir\.git")) {
+-    Write-Host "  Initialisiere Git Repository..." -ForegroundColor Cyan
+-    & git init | Out-Null
+-    & git branch -M main | Out-Null
+-    Write-Host "  OK Git Repository initialisiert" -ForegroundColor Green
++    Write-Host "  $($Text.git_repo_init)" -ForegroundColor Cyan
++    & git init 2>&1 | Out-Null
++    & git branch -M main 2>&1 | Out-Null
++    Write-Host "  ✓ Git repository initialized" -ForegroundColor Green
+ } else {
+-    Write-Host "  OK Git Repository existiert bereits" -ForegroundColor Green
++    Write-Host "  ✓ $($Text.git_repo_exists)" -ForegroundColor Green
+ }
+ 
+ # ============================================================
+-# 5. GIT COMMIT & PUSH
++# 6. GIT COMMIT & PUSH
+ # ============================================================
+ 
+ Write-Host ""
+-Write-Host "[SCHRITT 5/5] Git Commit und Push..." -ForegroundColor Yellow
++Write-Host $Text.step_6 -ForegroundColor Yellow
+ 
+-# Check if there are changes
+ $status = & git status --porcelain 2>&1
+ if ($status) {
+-    Write-Host "  [GIT] Staging all files..." -ForegroundColor Cyan
+-    & git add . | Out-Null
++    Write-Host "  $($Text.staging_files)" -ForegroundColor Cyan
++    & git add . 2>&1 | Out-Null
+     
+     $commitMsg = @"
+ feat: ExecutionPolicy Foundation v2.0.0 - GrEEV.com KG
+@@ -188,23 +325,21 @@ Support: support@greev.com
+ License: AGPL-3.0-or-later OR MIT
+ "@
+     
+-    Write-Host "  [GIT] Creating commit..." -ForegroundColor Cyan
++    Write-Host "  $($Text.creating_commit)" -ForegroundColor Cyan
+     & git commit -m $commitMsg 2>&1 | Out-Null
+     
+     if (-not $DryRun) {
+-        Write-Host "  [GIT] Pushing to GitHub..." -ForegroundColor Cyan
++        Write-Host "  $($Text.pushing_repo)" -ForegroundColor Cyan
+         
+         if (Test-CommandExists "gh") {
+-            # Create and push repository
+             $repoName = "ExecutionPolicy-Foundation"
+-            
+-            # Check if repo already exists
+             $existingRepo = & gh repo view $repoName --json name 2>&1
++            
+             if ($LASTEXITCODE -eq 0) {
+-                Write-Host "  OK Repository existiert bereits, pushe nur..." -ForegroundColor Green
++                Write-Host "  ✓ $($Text.repo_exists)" -ForegroundColor Green
+                 & git push -u origin main 2>&1 | Out-Null
+             } else {
+-                Write-Host "  Creating new repository on GitHub..." -ForegroundColor Yellow
++                Write-Host "  Creating new repository..." -ForegroundColor Yellow
+                 & gh repo create $repoName `
+                     --public `
+                     --source=. `
+@@ -213,47 +348,50 @@ License: AGPL-3.0-or-later OR MIT
+                     2>&1 | Out-Null
+                 
+                 if ($LASTEXITCODE -eq 0) {
+-                    Write-Host "  OK Repository erstellt und gepusht" -ForegroundColor Green
++                    Write-Host "  ✓ $($Text.repo_created)" -ForegroundColor Green
+                 } else {
+-                    Write-Host "  WARN Repository-Erstellung könnte fehlgeschlagen sein" -ForegroundColor Yellow
++                    Write-Host "  ⚠ $($Text.repo_creation_failed)" -ForegroundColor Yellow
+                 }
+             }
+-        } else {
+-            Write-Host "  X GitHub CLI nicht verfügbar - kann nicht zu GitHub pushen" -ForegroundColor Red
+         }
+     } else {
+-        Write-Host "  [DRY-RUN] Push übersprungen" -ForegroundColor Yellow
++        Write-Host "  $($Text.dry_run_mode)" -ForegroundColor Yellow
+     }
+ } else {
+-    Write-Host "  ℹ Keine Änderungen zum Commit" -ForegroundColor Cyan
++    Write-Host "  ℹ $($Text.no_changes)" -ForegroundColor Cyan
+ }
+ 
+ # ============================================================
+-# 6. FERTIG
++# 7. FINISHED
+ # ============================================================
+ 
++Write-Host ""
++Write-Host $Text.step_7 -ForegroundColor Yellow
++
+ Pop-Location
+ 
+ Write-Host ""
+ Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+-Write-Host "║                    OK FERTIG! OK                           ║" -ForegroundColor Green
++Write-Host "║                    ✓ $($Text.finished) ✓                           ║" -ForegroundColor Green
+ Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+ Write-Host ""
+ 
+ if (Test-CommandExists "gh") {
+-    Write-Host "GitHub Repository:" -ForegroundColor Cyan
++    Write-Host "$($Text.github_url)" -ForegroundColor Cyan
+     & gh repo view ExecutionPolicy-Foundation --json url -q '.url' 2>&1
+     Write-Host ""
+-    Write-Host "→ Repository wird im Browser geöffnet..." -ForegroundColor Yellow
++    Write-Host "$($Text.opening_browser)" -ForegroundColor Yellow
+     & gh repo view ExecutionPolicy-Foundation --web 2>&1 | Out-Null
+ } else {
+-    Write-Host "Repository: https://github.com/$GitUsername/ExecutionPolicy-Foundation" -ForegroundColor Cyan
++    Write-Host "$($Text.github_url)" -ForegroundColor Cyan
++    Write-Host "  https://github.com/$GitUsername/ExecutionPolicy-Foundation" -ForegroundColor Cyan
+ }
+ 
+ Write-Host ""
+-Write-Host "Support & Lizenz:" -ForegroundColor Gray
+-Write-Host "  - Professional Support: support@greev.com | EUR 499/year" -ForegroundColor Gray
+-Write-Host "  - License: AGPL-3.0-or-later OR MIT" -ForegroundColor Gray
++Write-Host "Support & License:" -ForegroundColor Gray
++Write-Host "  • $($Text.support_info)" -ForegroundColor Gray
++Write-Host "  • $($Text.license_info)" -ForegroundColor Gray
+ Write-Host ""
+ 
++$global:LASTEXITCODE = 0
+ exit 0
+diff --git a/attic/README.md b/attic/README.md
+deleted file mode 100644
+index 91a709e..0000000
+--- a/attic/README.md
++++ /dev/null
+@@ -1,300 +0,0 @@
+-# ExecutionPolicy Foundation v2.0.0
+-
+-**GrEEV.com KG** - Robust PowerShell execution framework with GPO detection and Zone.Identifier handling.
+-
+-**Dual Licensed** | **FREE** with optional Professional Support
+-
+----
+-
+-## 🚀 Quick Start
+-
+-### Option A: Batch Wrapper (Recommended)
+-
+-```batch
+-Start.bat
+-Start.bat setup.ps1
+-Start.bat script.ps1 de
+-```
+-
+-### Option B: PowerShell Native
+-
+-```powershell
+-.\Start.ps1 -ShowPolicies
+-.\Start.ps1 -ScriptName setup.ps1 -Language de
+-.\Start.ps1 -ScriptName verify.ps1 -WhatIf
+-```
+-
+----
+-
+-## 📋 How It Works
+-
+-### Two-Layer Protection
+-
+-Windows blocks PowerShell scripts in two ways:
+-
+-1. **ExecutionPolicy** (System-level) - PowerShell built-in policy
+-2. **Zone.Identifier** (File-level) - NTFS stream marking files as "from Internet"
+-
+-This framework handles **both**:
+-
+-```
+-Start.bat / Start.ps1
+-│
+-├─ Phase 1: Validate script exists
+-├─ Phase 2: Check for GPO restrictions
+-│  └─ If MachinePolicy=Restricted → FATAL (requires IT admin)
+-├─ Phase 3: Unblock downloaded files
+-│  └─ Remove Zone.Identifier from all .ps1 files
+-├─ Phase 4: Execute main script
+-│  └─ Run with -ExecutionPolicy Bypass
+-└─ Phase 5: Error diagnostics
+-   └─ Provide actionable error messages
+-```
+-
+----
+-
+-## 📄 Licensing & Support
+-
+-### FREE Options
+-
+-**AGPLv3 (Community)**
+-- ✓ Open source projects
+-- ✓ Individual developers
+-- ✗ Closed-source or SaaS
+-
+-**MIT (Developer)**
+-- ✓ Commercial software
+-- ✓ SaaS allowed
+-- ✓ Closed-source OK
+-- ✗ No support included
+-
+-### Professional Support (EUR 499/year)
+-
+-**Add Professional Support to EITHER license:**
+-- ✓ 48-hour guaranteed response time (SLA)
+-- ✓ Priority bug fixes and security patches
+-- ✓ Deployment consultation and guidance
+-- ✓ Direct email support: support@greev.com
+-- ✓ Quarterly health check and updates review
+-
+-### License Comparison Table
+-
+-| Feature | Community | Developer | + Professional |
+-|---------|-----------|-----------|-----------------|
+-| **License** | AGPLv3 | MIT | AGPLv3 or MIT |
+-| **Cost** | Free | Free | EUR 499/year |
+-| **Commercial Use** | No | **Yes** | **Yes** |
+-| **Closed Source** | No | **Yes** | **Yes** |
+-| **SaaS Allowed** | If open | **Yes** | **Yes** |
+-| **Email Support** | No | No | **Yes (48h)** |
+-| **Priority Fixes** | No | No | **Yes** |
+-| **Consulting** | No | No | **Yes** |
+-| **Response Time** | N/A | N/A | **48h SLA** |
+-
+----
+-
+-## 📞 Getting Support
+-
+-### Free Community Support
+-- GitHub Issues for bug reports
+-- Community contributions
+-- Self-service troubleshooting
+-
+-### Professional Support (EUR 499/year)
+-
+-1. Contact: **office@greev.com**
+-2. Request Professional Support Agreement
+-3. Receive: support email account, ticket system
+-4. Email: **support@greev.com** with issues
+-5. We respond within 48 hours (24 for security)
+-
+-### Custom Development
+-
+-Need custom scripts or modifications?
+-
+-- **EUR 89/hour** - Script development
+-- **EUR 299/day** - Consulting and architecture
+-- **EUR 1500+** - Full integration projects
+-
+-Contact: **office@greev.com**
+-
+----
+-
+-## 📁 Files Included
+-
+-| File | Purpose |
+-|------|---------|
+-| `Start.bat` | Batch launcher for double-click execution |
+-| `Start.ps1` | PowerShell launcher with advanced options |
+-| `unblock-files_v1.0.0.ps1` | Zone.Identifier unlocker utility |
+-| `setup.ps1` | Setup/initialization script template |
+-| `README.md` | This documentation |
+-| `LICENSE` | AGPLv3 Community License text |
+-| `MIT-LICENSE` | MIT Developer License text |
+-| `PROFESSIONAL-SUPPORT.md` | Professional Support Agreement |
+-| `.gitattributes` | Git configuration (line endings) |
+-
+----
+-
+-## 🔧 Troubleshooting
+-
+-### "ExecutionPolicy is locked by Group Policy"
+-
+-Your IT administrator has set system-wide policy. Cannot bypass.
+-
+-**Solution:** Contact IT and request `RemoteSigned` policy.
+-
+-### "File cannot be loaded because it is from the Internet"
+-
+-File has Zone.Identifier mark from being downloaded.
+-
+-**Solution:** 
+-```powershell
+-.\unblock-files_v1.0.0.ps1
+-# Or use Start.bat which handles this automatically
+-```
+-
+-### Script runs but exits with error
+-
+-Check:
+-1. Does it require administrator rights? → Run as Administrator
+-2. Are dependencies installed? → Check documentation
+-3. Run with `-Verbose` for detailed output
+-
+----
+-
+-## 🔄 Git Integration
+-
+-### Initial GitHub Upload
+-
+-```powershell
+-cd C:\Users\koni\ExecutionPolicy-Foundation\
+-
+-git add .
+-git commit -m "feat: GrEEV.com KG ExecutionPolicy Foundation v2.0.0
+-
+-- Dual licensed (AGPLv3/MIT)
+-- Professional support option
+-- Zone.Identifier handling
+-- GPO detection
+-- Multi-language (EN/DE)"
+-
+-git push origin main
+-```
+-
+-### View Repository
+-
+-```powershell
+-gh repo view --web
+-```
+-
+----
+-
+-## 💼 Integration Guide
+-
+-### Step 1: Copy Framework Files
+-
+-```powershell
+-Copy-Item -Path "Start.bat", "Start.ps1", "unblock-files_v1.0.0.ps1" `
+-  -Destination "C:\YourProject\"
+-```
+-
+-### Step 2: Create Your Main Script
+-
+-Create `setup.ps1` in the project folder.
+-
+-### Step 3: Run with Wrapper
+-
+-```batch
+-Start.bat setup.ps1
+-```
+-
+-Or:
+-
+-```powershell
+-.\Start.ps1 -ScriptName setup.ps1
+-```
+-
+----
+-
+-## 🌍 Multi-Language Support
+-
+-All scripts support **English (en)** and **German (de)**:
+-
+-```powershell
+-# English (default)
+-.\Start.ps1 -Language en
+-
+-# German
+-.\Start.ps1 -Language de
+-```
+-
+----
+-
+-## 📊 Version History
+-
+-**v2.0.0** (2026-01-18)
+-- Dual Licensed (AGPLv3/MIT)
+-- Professional Support model
+-- EN/DE localization
+-- GrEEV.com branding
+-- Enhanced error handling
+-
+-**v1.0.0** (2025)
+-- Initial release
+-- Zone.Identifier handling
+-- ExecutionPolicy bypass
+-
+----
+-
+-## 📞 Contact & Support
+-
+-**GrEEV.com KG**
+-- Website: [www.greev.com](https://www.greev.com)
+-- Email: [office@greev.com](mailto:office@greev.com)
+-- Support: [support@greev.com](mailto:support@greev.com)
+-- Location: Graz, Austria
+-
+----
+-
+-## 📄 License Information
+-
+-### Quick Summary
+-
+-Choose **one** of these:
+-
+-1. **AGPLv3** (FREE) - For open source projects
+-2. **MIT** (FREE) - For commercial/SaaS projects
+-3. **MIT + Professional Support** (EUR 499/year) - For enterprises
+-
+-### Full License Texts
+-
+-- See `LICENSE` for AGPLv3 full text
+-- See `MIT-LICENSE` for MIT full text
+-- See `PROFESSIONAL-SUPPORT.md` for support terms
+-
+-### SPDX Identifier
+-
+-```
+-SPDX-License-Identifier: (AGPL-3.0-or-later OR MIT)
+-```
+-
+----
+-
+-## 🏢 About GrEEV.com KG
+-
+-GrEEV.com KG specializes in:
+-- IT Infrastructure Automation
+-- PowerShell Development
+-- Open Source Software
+-- Digital Identity Standards (eIDAS)
+-- Container Orchestration
+-
+-**ExecutionPolicy Foundation** is our open-source contribution to the PowerShell community.
+-
+----
+-
+-**Copyright © 2026 GrEEV.com KG. All rights reserved.**
+-
+-Dual Licensed under AGPLv3 and MIT.
+-
+diff --git a/attic/Start.bat b/attic/Start.bat
+deleted file mode 100644
+index 14a01da..0000000
+--- a/attic/Start.bat
++++ /dev/null
+@@ -1,74 +0,0 @@
+-REM ================================================================
+-REM ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+-REM █ GrEEV.com KG - EXECUTIONPOLICY FOUNDATION for PS v2.0.0 █
+-REM █ www.greev.com | office@greev.com | Dual Licensed █
+-REM ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+-REM
+-REM Copyright (C) 2026 GrEEV.com KG. All rights reserved.
+-REM
+-REM Dual Licensed:
+-REM 1. AGPLv3 (Community Edition) - for OSS projects
+-REM 2. MIT License (Commercial-Friendly) - for commercial use
+-REM 3. Professional Support - EUR 499/year
+-REM
+-REM SPDX-License-Identifier: (AGPL-3.0-or-later OR MIT)
+-REM Support: support@greev.com | www.greev.com
+-REM ================================================================
+-
+-@ECHO OFF
+-SETLOCAL ENABLEDELAYEDEXPANSION
+-
+-REM ================================================================
+-REM UTF-8 ENCODING FOR BOX-DRAWING CHARACTERS
+-REM ================================================================
+-chcp 65001 >nul 2>&1
+-
+-REM ================================================================
+-REM PARAMETER PARSING
+-REM ================================================================
+-
+-SET "SCRIPT_NAME=%~1"
+-SET "LANGUAGE=%~2"
+-SET "WHATIF=%~3"
+-
+-IF NOT DEFINED SCRIPT_NAME SET "SCRIPT_NAME=Start.ps1"
+-IF NOT DEFINED LANGUAGE SET "LANGUAGE=en"
+-IF NOT DEFINED WHATIF SET "WHATIF=false"
+-
+-REM ================================================================
+-REM MAIN EXECUTION
+-REM ================================================================
+-
+-ECHO.
+-ECHO ╔================================================================╗
+-ECHO ║ ExecutionPolicy Foundation v2.0.0 - GrEEV.com KG ║
+-ECHO ║ Dual Licensed (AGPLv3/MIT) with Professional Support Option ║
+-ECHO ╚================================================================╝
+-ECHO.
+-ECHO Script Name: !SCRIPT_NAME!
+-ECHO Language:   !LANGUAGE!
+-ECHO WhatIf Mode: !WHATIF!
+-ECHO.
+-
+-REM Run PowerShell launcher with proper encoding
+-POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command ^
+-"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; & '%~dp0Start.ps1' -ScriptName '!SCRIPT_NAME!' -Language '!LANGUAGE!' -WhatIf:$(!WHATIF! -eq 'true')"
+-
+-SET "EXIT_CODE=!ERRORLEVEL!"
+-
+-ECHO.
+-IF !EXIT_CODE! EQU 0 (
+-    ECHO ╔================================================================╗
+-    ECHO ║ ✓ Script completed successfully ║
+-    ECHO ║ Need support? support@greev.com (EUR 499/year) ║
+-    ECHO ╚================================================================╝
+-) ELSE (
+-    ECHO ╔================================================================╗
+-    ECHO ║ ✗ Script failed with exit code !EXIT_CODE! ║
+-    ECHO ║ Issues? Contact: office@greev.com ║
+-    ECHO ╚================================================================╝
+-    ECHO.
+-    PAUSE
+-)
+-
+-EXIT /B !EXIT_CODE!
+diff --git a/attic/Start.ps1 b/attic/Start.ps1
+deleted file mode 100644
+index 0d8fc84..0000000
+--- a/attic/Start.ps1
++++ /dev/null
+@@ -1,236 +0,0 @@
+-#!/usr/bin/env powershell
+-# ================================================================
+-#  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 
+-#  █ GrEEV.com KG - EXECUTIONPOLICY FOUNDATION for PS v2.0.0    █
+-#  █ www.greev.com | office@greev.com | Dual Licensed           █
+-#  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ 
+-#  
+-# Copyright (C) 2026 GrEEV.com KG. All rights reserved.
+-# 
+-# Dual Licensed:
+-# 1. AGPLv3 (Community Edition) - https://www.gnu.org/licenses/agpl-3.0.html
+-#    Free for open source projects and individual use
+-# 2. MIT License (Commercial-Friendly) - https://opensource.org/licenses/MIT
+-#    Permissive for commercial use and SaaS
+-# 
+-# Professional Support available: EUR 499/year
+-# Support: support@greev.com
+-# 
+-# SPDX-License-Identifier: (AGPL-3.0-or-later OR MIT)
+-# ================================================================
+-
+-param(
+-    [string]$ScriptName = "setup.ps1",
+-    [string]$Language = "en",
+-    [switch]$WhatIf = $false,
+-    [switch]$ShowPolicies = $false,
+-    [switch]$Verbose = $false
+-)
+-
+-# ================================================================
+-# UTF-8 ENCODING FIX FOR WINDOWS TERMINAL
+-# ================================================================
+-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+-
+-# ================================================================
+-# STRICT MODE & ERROR HANDLING
+-# ================================================================
+-Set-StrictMode -Version Latest
+-$ErrorActionPreference = "Stop"
+-
+-# ================================================================
+-# CONFIGURATION
+-# ================================================================
+-
+-$Config = @{
+-    ScriptDir       = Split-Path -Parent $MyInvocation.MyCommandPath
+-    ScriptName      = $ScriptName
+-    Language        = if ($Language -eq "de") { "de" } else { "en" }
+-    WhatIfMode      = $WhatIf.IsPresent
+-    ShowPolicies    = $ShowPolicies.IsPresent
+-    VerboseLogging  = $Verbose.IsPresent
+-}
+-
+-# ================================================================
+-# LOCALIZATION (EN / DE)
+-# ================================================================
+-
+-$Strings = @{
+-    en = @{
+-        title              = "ExecutionPolicy Foundation v2.0.0"
+-        subtitle           = "GrEEV.com KG - Dual Licensed (AGPLv3/MIT)"
+-        unblocking         = "Unblocking Zone.Identifier from downloaded files..."
+-        checking_policies  = "Checking ExecutionPolicy..."
+-        policies_locked    = "ExecutionPolicy is locked by Group Policy"
+-        executing_script   = "Executing script: {0}"
+-        error_not_found    = "Script not found: {0}"
+-        error_gpo_locked   = "Cannot bypass Group Policy lock. Contact IT admin."
+-        success            = "Script executed successfully"
+-        whatif_mode        = "WhatIf Mode: Not executing changes"
+-        support_info       = "Professional Support: support@greev.com | EUR 499/year"
+-        license_info       = "License: AGPLv3 (OSS) | MIT (Commercial) | Support"
+-    }
+-    de = @{
+-        title              = "ExecutionPolicy Foundation v2.0.0"
+-        subtitle           = "GrEEV.com KG - Dual Lizenz (AGPLv3/MIT)"
+-        unblocking         = "Zone.Identifier wird von heruntergeladenen Dateien entfernt..."
+-        checking_policies  = "ExecutionPolicy wird überprüft..."
+-        policies_locked    = "ExecutionPolicy ist durch Group Policy gesperrt"
+-        executing_script   = "Script wird ausgeführt: {0}"
+-        error_not_found    = "Script nicht gefunden: {0}"
+-        error_gpo_locked   = "Group Policy-Sperre kann nicht umgangen werden. Kontaktieren Sie IT-Admin."
+-        success            = "Script erfolgreich ausgeführt"
+-        whatif_mode        = "WhatIf Mode: Änderungen werden nicht durchgeführt"
+-        support_info       = "Professional Support: support@greev.com | EUR 499/Jahr"
+-        license_info       = "Lizenz: AGPLv3 (OSS) | MIT (Kommerziell) | Support"
+-    }
+-}
+-
+-$Text = $Strings[$Config.Language]
+-
+-# ================================================================
+-# FUNCTIONS
+-# ================================================================
+-
+-function Write-Header {
+-    Write-Host ""
+-    Write-Host "╔================================================================╗" -ForegroundColor Cyan
+-    Write-Host "║  $($Text.title)" -ForegroundColor Cyan
+-    Write-Host "║  $($Text.subtitle)" -ForegroundColor Cyan
+-    Write-Host "╚================================================================╝" -ForegroundColor Cyan
+-    Write-Host ""
+-}
+-
+-function Get-ExecutionPolicies {
+-    $policies = @{
+-        Scopes   = @("MachinePolicy", "UserPolicy", "Process", "CurrentUser", "LocalMachine")
+-        Policies = @()
+-    }
+-    
+-    foreach ($scope in $policies.Scopes) {
+-        $policy = Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+-        $policies.Policies += @{ Scope = $scope; Policy = $policy }
+-    }
+-    
+-    return $policies
+-}
+-
+-function Unblock-FilesInDirectory {
+-    param([string]$Path)
+-    
+-    Write-Host ""
+-    Write-Host $Text.unblocking -ForegroundColor Yellow
+-    
+-    $files = @(Get-ChildItem -Path $Path -Filter "*.ps1" -ErrorAction SilentlyContinue)
+-    
+-    if ($files.Count -eq 0) {
+-        if ($Config.Language -eq "de") {
+-            Write-Host "  Keine .ps1 Dateien gefunden" -ForegroundColor Gray
+-        } else {
+-            Write-Host "  No .ps1 files found" -ForegroundColor Gray
+-        }
+-        return
+-    }
+-    
+-    foreach ($file in $files) {
+-        if ($Config.WhatIfMode) {
+-            Write-Host "  [WhatIf] Unblock: $($file.Name)" -ForegroundColor Gray
+-        } else {
+-            Unblock-File -Path $file.FullName -ErrorAction SilentlyContinue
+-            Write-Host "  ✓ $($file.Name)" -ForegroundColor Green
+-        }
+-    }
+-}
+-
+-function Invoke-MainScript {
+-    $scriptPath = Join-Path $Config.ScriptDir $Config.ScriptName
+-    
+-    if (-not (Test-Path $scriptPath)) {
+-        Write-Host ""
+-        Write-Host "✗ $($Text.error_not_found -f $Config.ScriptName)" -ForegroundColor Red
+-        return $false
+-    }
+-    
+-    Write-Host ""
+-    Write-Host $($Text.executing_script -f $Config.ScriptName) -ForegroundColor Cyan
+-    
+-    if ($Config.WhatIfMode) {
+-        if ($Config.Language -eq "de") {
+-            Write-Host "[WhatIf] Würde ausführen: $scriptPath" -ForegroundColor Yellow
+-        } else {
+-            Write-Host "[WhatIf] Would execute: $scriptPath" -ForegroundColor Yellow
+-        }
+-    } else {
+-        & $scriptPath
+-    }
+-    
+-    return $LASTEXITCODE -eq 0
+-}
+-
+-# ================================================================
+-# MAIN EXECUTION
+-# ================================================================
+-
+-Write-Header
+-
+-# Show current policies if requested
+-if ($Config.ShowPolicies) {
+-    if ($Config.Language -eq "de") {
+-        Write-Host "Aktuelle ExecutionPolicy Einstellungen:" -ForegroundColor Yellow
+-    } else {
+-        Write-Host "Current ExecutionPolicy Settings:" -ForegroundColor Yellow
+-    }
+-    $policies = Get-ExecutionPolicies
+-    foreach ($policy in $policies.Policies) {
+-        Write-Host "  $($policy.Scope): $($policy.Policy)" -ForegroundColor White
+-    }
+-    Write-Host ""
+-}
+-
+-# Check for Group Policy lock
+-Write-Host $Text.checking_policies -ForegroundColor Cyan
+-$machinePolicy = Get-ExecutionPolicy -Scope MachinePolicy -ErrorAction SilentlyContinue
+-if ($machinePolicy -eq "Restricted") {
+-    Write-Host "✗ $($Text.error_gpo_locked)" -ForegroundColor Red
+-    Write-Host ""
+-    if ($Config.Language -eq "de") {
+-        Write-Host "Dieses Skript kann nicht ausgeführt werden, da Group Policy ExecutionPolicy auf Restricted gesperrt hat." -ForegroundColor Yellow
+-        Write-Host "Wenden Sie sich bitte an Ihren IT-Administrator, um eine Richtlinienänderung anzufordern." -ForegroundColor Yellow
+-    } else {
+-        Write-Host "This script cannot run because Group Policy has locked ExecutionPolicy to Restricted." -ForegroundColor Yellow
+-        Write-Host "Please contact your IT administrator to request policy change." -ForegroundColor Yellow
+-    }
+-    exit 1
+-}
+-
+-Write-Host "✓ ExecutionPolicy check passed" -ForegroundColor Green
+-
+-# Unblock files
+-Unblock-FilesInDirectory $Config.ScriptDir
+-
+-# Show WhatIf mode
+-if ($Config.WhatIfMode) {
+-    Write-Host ""
+-    Write-Host $Text.whatif_mode -ForegroundColor Yellow
+-}
+-
+-# Execute main script
+-if (Invoke-MainScript) {
+-    Write-Host ""
+-    Write-Host "✓ $($Text.success)" -ForegroundColor Green
+-    Write-Host ""
+-    Write-Host $Text.support_info -ForegroundColor Gray
+-    Write-Host $Text.license_info -ForegroundColor Gray
+-    Write-Host ""
+-    exit 0
+-} else {
+-    Write-Host ""
+-    if ($Config.Language -eq "de") {
+-        Write-Host "✗ Script-Ausführung fehlgeschlagen" -ForegroundColor Red
+-    } else {
+-        Write-Host "✗ Script execution failed" -ForegroundColor Red
+-    }
+-    Write-Host ""
+-    exit 1
+-}
+-
+diff --git a/attic/StartWithGithub.ps1 b/attic/StartWithGithub.ps1
+deleted file mode 100644
+index f7b016b..0000000
+--- a/attic/StartWithGithub.ps1
++++ /dev/null
+@@ -1,88 +0,0 @@
+-# ================================================================
+-# EXECUTIONPOLICY FOUNDATION - VOLLSTÄNDIGER GITHUB UPLOAD
+-# ================================================================
+-
+-Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+-Write-Host "║  ExecutionPolicy Foundation - Git Setup & GitHub Upload    ║" -ForegroundColor Cyan
+-Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+-
+-# ================================================================
+-# 1. INSTALLATION
+-# ================================================================
+-
+-Write-Host "`n[SCHRITT 1/5] Git installieren..." -ForegroundColor Yellow
+-winget install Git.Git --accept-package-agreements --accept-source-agreements --quiet 2>$null
+-Start-Sleep -Seconds 2
+-git --version
+-
+-Write-Host "`n[SCHRITT 2/5] GitHub CLI installieren..." -ForegroundColor Yellow
+-winget install GitHub.cli --accept-package-agreements --accept-source-agreements --quiet 2>$null
+-Start-Sleep -Seconds 2
+-gh version
+-
+-Write-Host "`n[SCHRITT 3/5] Git konfigurieren..." -ForegroundColor Yellow
+-git config --global user.name "KonradLanz"
+-git config --global user.email "office@greev.com"
+-git config --global init.defaultBranch main
+-Write-Host "✓ Git konfiguriert" -ForegroundColor Green
+-
+-Write-Host "`n[SCHRITT 4/5] GitHub authentifizieren (Browser wird geöffnet)..." -ForegroundColor Yellow
+-gh auth login --web 2>$null
+-Write-Host "✓ GitHub Auth fertig" -ForegroundColor Green
+-
+-# ================================================================
+-# 2. DATEIEN KOPIEREN
+-# ================================================================
+-
+-Write-Host "`n[SCHRITT 5/5] Dateien vorbereiten..." -ForegroundColor Yellow
+-
+-$targetDir = "C:\Users\koni\ExecutionPolicy-Foundation"
+-$sourceDir = "$env:USERPROFILE\Downloads"
+-
+-cd $targetDir
+-
+-# Dateien kopieren
+-@("Start.bat", "Start.ps1", "unblock-files_v1.0.0.ps1", ".gitattributes", "README.md", "setup.ps1") | ForEach-Object {
+-    if (Test-Path "$sourceDir\$_") {
+-        Copy-Item -Path "$sourceDir\$_" -Destination $targetDir -Force
+-        Write-Host "  ✓ $_" -ForegroundColor Green
+-    }
+-}
+-
+-# ================================================================
+-# 3. GIT COMMIT & PUSH
+-# ================================================================
+-
+-Write-Host "`n[GIT] Staging all files..." -ForegroundColor Cyan
+-git add .
+-
+-Write-Host "[GIT] Creating commit..." -ForegroundColor Cyan
+-git commit -m "feat: ExecutionPolicy Foundation v2.0.0
+-
+-- Parametrized Start.bat and Start.ps1 launchers
+-- GPO detection with actionable error messages
+-- Zone.Identifier unblocking for ZIP downloads
+-- Dual-language support (EN/DE)
+-- WhatIf dry-run mode" 2>$null
+-
+-Write-Host "[GIT] Pushing to GitHub..." -ForegroundColor Cyan
+-gh repo create ExecutionPolicy-Foundation `
+-    --public `
+-    --source=. `
+-    --push `
+-    --description "Robust PowerShell execution framework with GPO detection" 2>$null
+-
+-# ================================================================
+-# 4. FERTIG
+-# ================================================================
+-
+-Write-Host "`n╔════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+-Write-Host "║                    ✓ FERTIG! ✓                           ║" -ForegroundColor Green
+-Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Green
+-
+-Write-Host "`nGitHub URL:" -ForegroundColor Cyan
+-gh repo view --json url -q '.url'
+-
+-Write-Host "`n→ Repository wird im Browser geöffnet..." -ForegroundColor Yellow
+-gh repo view --web
+-
+diff --git a/attic/Start_0.0.1.bat b/attic/Start_0.0.1.bat
+deleted file mode 100644
+index ceecb21..0000000
+--- a/attic/Start_0.0.1.bat
++++ /dev/null
+@@ -1,62 +0,0 @@
+-REM ================================================================
+-REM  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 
+-REM  █ GrEEV.com KG - EXECUTIONPOLICY FOUNDATION for PS v2.0.0    █
+-REM  █ www.greev.com | office@greev.com | Dual Licensed           █
+-REM  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ 
+-REM
+-REM Copyright (C) 2026 GrEEV.com KG. All rights reserved.
+-REM
+-REM Dual Licensed:
+-REM 1. AGPLv3 (Community Edition) - for OSS projects
+-REM 2. MIT License (Commercial-Friendly) - for commercial use
+-REM 3. Professional Support - EUR 499/year
+-REM
+-REM SPDX-License-Identifier: (AGPL-3.0-or-later OR MIT)
+-REM Support: support@greev.com | www.greev.com
+-REM ================================================================
+-@ECHO OFF
+-SETLOCAL ENABLEDELAYEDEXPANSION
+-
+-REM Parameter Parsing
+-SET "SCRIPT_NAME=%~1"
+-SET "PARAM2=%~2"
+-SET "PARAM3=%~3"
+-
+-IF NOT DEFINED SCRIPT_NAME SET "SCRIPT_NAME=Start.ps1"
+-
+-REM Main Execution
+-ECHO.
+-ECHO ╔================================================================╗
+-ECHO ║  ExecutionPolicy Foundation v2.0.0 - GrEEV.com KG             ║
+-ECHO ║  Dual Licensed (AGPLv3/MIT) with Professional Support Option  ║
+-ECHO ╚================================================================╝
+-ECHO.
+-ECHO Script:  %SCRIPT_NAME%
+-ECHO Param 2: %PARAM2%
+-ECHO Param 3: %PARAM3%
+-ECHO.
+-
+-REM Run PowerShell launcher
+-POWERSHELL -NoProfile -ExecutionPolicy Bypass -File "%~dp0Start.ps1" ^
+-  -ScriptName "%SCRIPT_NAME%" ^
+-  -Language "%PARAM2%" ^
+-  -WhatIf:%PARAM3%
+-
+-SET "EXIT_CODE=%ERRORLEVEL%"
+-
+-ECHO.
+-IF %EXIT_CODE% EQU 0 (
+-    ECHO ╔================================================================╗
+-    ECHO ║  ✓ Script completed successfully                              ║
+-    ECHO ║  Need support? support@greev.com (EUR 499/year)               ║
+-    ECHO ╚================================================================╝
+-) ELSE (
+-    ECHO ╔================================================================╗
+-    ECHO ║  ✗ Script failed with exit code %EXIT_CODE%                       ║
+-    ECHO ║  Issues? Contact: office@greev.com                            ║
+-    ECHO ╚================================================================╝
+-)
+-
+-ECHO.
+-PAUSE
+-EXIT /B %EXIT_CODE%
+diff --git a/attic/Start_neu.bat b/attic/Start_neu.bat
+deleted file mode 100644
+index 16aa68f..0000000
+--- a/attic/Start_neu.bat
++++ /dev/null
+@@ -1,57 +0,0 @@
+-@ECHO OFF
+-REM ════════════════════════════════════════════════════════════════
+-REM  GrEEV.com KG - EXECUTIONPOLICY FOUNDATION v2.0.0
+-REM  Smart Launcher - Auto-detects PowerShell 7 vs 5.1
+-REM  www.greev.com | support@greev.com
+-REM ════════════════════════════════════════════════════════════════
+-
+-SETLOCAL ENABLEDELAYEDEXPANSION
+-chcp 65001 >nul 2>&1
+-
+-SET "SCRIPT_NAME=%~1"
+-SET "LANGUAGE=%~2"
+-
+-IF NOT DEFINED SCRIPT_NAME SET "SCRIPT_NAME=Start.ps1"
+-IF NOT DEFINED LANGUAGE SET "LANGUAGE=en"
+-
+-REM ════════════════════════════════════════════════════════════════
+-REM  DETECT: PowerShell 7 (pwsh.exe) vs PowerShell 5.1 (powershell.exe)
+-REM ════════════════════════════════════════════════════════════════
+-
+-SET "PS_EXECUTABLE=powershell.exe"
+-
+-REM Try to find pwsh.exe (PowerShell 7+)
+-WHERE pwsh.exe >nul 2>&1
+-IF !ERRORLEVEL! EQU 0 (
+-    SET "PS_EXECUTABLE=pwsh.exe"
+-    ECHO [INFO] Using PowerShell 7+ (pwsh.exe)
+-) ELSE (
+-    ECHO [INFO] Using Windows PowerShell 5.1 (powershell.exe)
+-)
+-
+-ECHO.
+-ECHO ============================================================
+-ECHO ExecutionPolicy Foundation v2.0.0 - GrEEV.com KG
+-ECHO ============================================================
+-ECHO.
+-
+-REM ════════════════════════════════════════════════════════════════
+-REM  EXECUTE: Call PowerShell with Bypass ExecutionPolicy
+-REM ════════════════════════════════════════════════════════════════
+-
+-%PS_EXECUTABLE% -NoProfile -ExecutionPolicy Bypass -Command "& '%~dp0!SCRIPT_NAME!' -ScriptName '!SCRIPT_NAME!' -Language '!LANGUAGE!'"
+-
+-SET "EXIT_CODE=!ERRORLEVEL!"
+-
+-IF !EXIT_CODE! EQU 0 (
+-    ECHO ============================================================
+-    ECHO [OK] Script completed successfully
+-    ECHO ============================================================
+-) ELSE (
+-    ECHO ============================================================
+-    ECHO [ERROR] Script failed with exit code !EXIT_CODE!
+-    ECHO ============================================================
+-    PAUSE
+-)
+-
+-EXIT /B !EXIT_CODE!
+diff --git a/attic/Start_old.ps1 b/attic/Start_old.ps1
+deleted file mode 100644
+index 767048d..0000000
+--- a/attic/Start_old.ps1
++++ /dev/null
+@@ -1,331 +0,0 @@
+-<#
+-.SYNOPSIS
+-    PowerShell-native launcher with GPO detection and Zone.Identifier handling
+-
+-.DESCRIPTION
+-    Alternative to Start.bat for users who prefer PowerShell directly.
+-    Handles ExecutionPolicy, GPO detection, and file unblocking automatically.
+-
+-.PARAMETER ScriptName
+-    PowerShell script to execute (default: setup.ps1)
+-
+-.PARAMETER Language
+-    Output language: 'en' or 'de' (default: en)
+-
+-.PARAMETER WhatIf
+-    Show what would happen without making changes
+-
+-.PARAMETER SkipUnblock
+-    Skip the Zone.Identifier unblock phase
+-
+-.PARAMETER ShowPolicies
+-    Display all ExecutionPolicy scopes and exit
+-
+-.EXAMPLE
+-    .\Start.ps1
+-    .\Start.ps1 -ScriptName scanner-install.ps1 -Language de
+-    .\Start.ps1 -ScriptName verify.ps1 -WhatIf
+-    .\Start.ps1 -ShowPolicies
+-
+-.NOTES
+-    Version: 2.0.0
+-    Date: 2026-01-18
+-    Author: ExecutionPolicy Foundation
+-#>
+-
+-[CmdletBinding(SupportsShouldProcess)]
+-param(
+-    [Parameter(Position = 0)]
+-    [string]$ScriptName = 'setup.ps1',
+-
+-    [Parameter(Position = 1)]
+-    [ValidateSet('en', 'de')]
+-    [string]$Language = 'en',
+-
+-    [switch]$SkipUnblock,
+-
+-    [switch]$ShowPolicies
+-)
+-
+-# ============================================================================
+-# CONFIGURATION
+-# ============================================================================
+-
+-$script:Config = @{
+-    Version = '2.0.0'
+-    Date = '2026-01-18'
+-    UnblockScript = 'unblock-files_v1.0.0.ps1'
+-}
+-
+-$script:Strings = @{
+-    en = @{
+-        title = "PowerShell Launcher v{0}"
+-        phase1 = "Phase 1: Validating script exists"
+-        phase2 = "Phase 2: Checking Group Policy restrictions"
+-        phase3 = "Phase 3: Unblocking downloaded files"
+-        phase4 = "Phase 4: Executing main script"
+-        script_not_found = "Script not found: {0}"
+-        available_scripts = "Available scripts:"
+-        gpo_blocked = "ExecutionPolicy is BLOCKED by Group Policy (MachinePolicy: {0})"
+-        gpo_blocked_detail = @"
+-
+-This cannot be bypassed by normal users.
+-
+-Solution:
+-  1. Contact your IT administrator
+-  2. Ask them to change Group Policy:
+-     Computer Configuration > Administrative Templates
+-     > Windows PowerShell > Execution Policy
+-     > Set to: RemoteSigned
+-"@
+-        gpo_ok = "No GPO restriction detected (MachinePolicy: {0})"
+-        unblock_skip = "Skipping unblock phase (--SkipUnblock)"
+-        unblock_not_found = "Unblock script not found - skipping"
+-        unblock_running = "Running unblock script..."
+-        executing = "Executing: {0}"
+-        success = "Script executed successfully"
+-        failed = "Script failed with exit code: {0}"
+-        policies_header = "ExecutionPolicy Status (all scopes):"
+-        whatif_mode = "[WhatIf] Dry-run mode - no changes will be made"
+-    }
+-    de = @{
+-        title = "PowerShell Launcher v{0}"
+-        phase1 = "Phase 1: Pruefe ob Skript existiert"
+-        phase2 = "Phase 2: Pruefe Gruppenrichtlinien"
+-        phase3 = "Phase 3: Entsperre heruntergeladene Dateien"
+-        phase4 = "Phase 4: Fuehre Hauptskript aus"
+-        script_not_found = "Skript nicht gefunden: {0}"
+-        available_scripts = "Verfuegbare Skripte:"
+-        gpo_blocked = "ExecutionPolicy ist durch Gruppenrichtlinie BLOCKIERT (MachinePolicy: {0})"
+-        gpo_blocked_detail = @"
+-
+-Dies kann von normalen Benutzern NICHT umgangen werden.
+-
+-Loesung:
+-  1. Kontaktieren Sie Ihren IT-Administrator
+-  2. Bitten Sie um Aenderung der Gruppenrichtlinie:
+-     Computer Configuration > Administrative Templates
+-     > Windows PowerShell > Execution Policy
+-     > Set to: RemoteSigned
+-"@
+-        gpo_ok = "Keine GPO-Blockierung erkannt (MachinePolicy: {0})"
+-        unblock_skip = "Ueberspringe Unblock-Phase (--SkipUnblock)"
+-        unblock_not_found = "Unblock-Skript nicht gefunden - ueberspringe"
+-        unblock_running = "Fuehre Unblock-Skript aus..."
+-        executing = "Starte: {0}"
+-        success = "Skript erfolgreich ausgefuehrt"
+-        failed = "Skript fehlgeschlagen mit Exit-Code: {0}"
+-        policies_header = "ExecutionPolicy Status (alle Scopes):"
+-        whatif_mode = "[WhatIf] Testmodus - keine Aenderungen werden vorgenommen"
+-    }
+-}
+-
+-$msg = $script:Strings[$Language]
+-
+-# ============================================================================
+-# UTILITY FUNCTIONS
+-# ============================================================================
+-
+-function Write-Phase {
+-    param([string]$Message)
+-    Write-Host ""
+-    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor DarkGray
+-    Write-Host $Message -ForegroundColor Cyan
+-    Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor DarkGray
+-}
+-
+-function Write-Status {
+-    param(
+-        [string]$Message, 
+-        [ValidateSet('Info', 'Success', 'Warning', 'Error')]
+-        [string]$Type = 'Info'
+-    )
+-
+-    $colors = @{
+-        Info = 'White'
+-        Success = 'Green'
+-        Warning = 'Yellow'
+-        Error = 'Red'
+-    }
+-    $prefixes = @{
+-        Info = '[•]'
+-        Success = '[✓]'
+-        Warning = '[⚠]'
+-        Error = '[✗]'
+-    }
+-
+-    Write-Host "$($prefixes[$Type]) $Message" -ForegroundColor $colors[$Type]
+-}
+-
+-function Get-AllExecutionPolicies {
+-    $scopes = @('MachinePolicy', 'UserPolicy', 'Process', 'LocalMachine', 'CurrentUser')
+-    $policies = [ordered]@{}
+-
+-    foreach ($scope in $scopes) {
+-        try {
+-            $policy = Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+-            $policies[$scope] = $policy.ToString()
+-        }
+-        catch {
+-            $policies[$scope] = 'Error'
+-        }
+-    }
+-
+-    return $policies
+-}
+-
+-function Show-ExecutionPolicies {
+-    Write-Host ""
+-    Write-Host $msg.policies_header -ForegroundColor Cyan
+-    Write-Host ""
+-
+-    $policies = Get-AllExecutionPolicies
+-
+-    foreach ($scope in $policies.Keys) {
+-        $value = $policies[$scope]
+-        $color = switch ($value) {
+-            'Restricted' { 'Red' }
+-            'AllSigned' { 'Yellow' }
+-            'RemoteSigned' { 'Green' }
+-            'Unrestricted' { 'Yellow' }
+-            'Bypass' { 'Cyan' }
+-            'Undefined' { 'DarkGray' }
+-            default { 'White' }
+-        }
+-
+-        $indicator = if ($scope -eq 'MachinePolicy' -and $value -eq 'Restricted') { ' ← BLOCKING' } else { '' }
+-
+-        Write-Host ("  {0,-15} : " -f $scope) -NoNewline
+-        Write-Host ("{0}{1}" -f $value, $indicator) -ForegroundColor $color
+-    }
+-    Write-Host ""
+-}
+-
+-# ============================================================================
+-# MAIN EXECUTION
+-# ============================================================================
+-
+-# Header
+-Write-Host ""
+-Write-Host ("=" * 65) -ForegroundColor DarkCyan
+-Write-Host ($msg.title -f $script:Config.Version) -ForegroundColor Cyan
+-Write-Host ("=" * 65) -ForegroundColor DarkCyan
+-
+-if ($WhatIf) {
+-    Write-Host $msg.whatif_mode -ForegroundColor Yellow
+-}
+-
+-# Show policies only mode
+-if ($ShowPolicies) {
+-    Show-ExecutionPolicies
+-    exit 0
+-}
+-
+-# ============================================================================
+-# PHASE 1: VALIDATE SCRIPT EXISTS
+-# ============================================================================
+-
+-Write-Phase $msg.phase1
+-
+-$scriptPath = Join-Path $PSScriptRoot $ScriptName
+-
+-if (-not (Test-Path $scriptPath)) {
+-    Write-Status ($msg.script_not_found -f $ScriptName) 'Error'
+-    Write-Host ""
+-    Write-Host $msg.available_scripts -ForegroundColor Yellow
+-
+-    Get-ChildItem -Path $PSScriptRoot -Filter "*.ps1" | ForEach-Object {
+-        Write-Host "  - $($_.Name)"
+-    }
+-
+-    exit 1
+-}
+-
+-Write-Status "Found: $ScriptName" 'Success'
+-
+-# ============================================================================
+-# PHASE 2: GPO DETECTION
+-# ============================================================================
+-
+-Write-Phase $msg.phase2
+-
+-$machinePolicy = Get-ExecutionPolicy -Scope MachinePolicy -ErrorAction SilentlyContinue
+-
+-if ($machinePolicy -eq 'Restricted') {
+-    Write-Status ($msg.gpo_blocked -f $machinePolicy) 'Error'
+-    Write-Host $msg.gpo_blocked_detail -ForegroundColor Yellow
+-
+-    Show-ExecutionPolicies
+-    exit 1
+-}
+-
+-Write-Status ($msg.gpo_ok -f $machinePolicy) 'Success'
+-
+-# ============================================================================
+-# PHASE 3: UNBLOCK FILES
+-# ============================================================================
+-
+-Write-Phase $msg.phase3
+-
+-if ($SkipUnblock) {
+-    Write-Status $msg.unblock_skip 'Info'
+-}
+-else {
+-    $unblockPath = Join-Path $PSScriptRoot $script:Config.UnblockScript
+-
+-    if (-not (Test-Path $unblockPath)) {
+-        Write-Status $msg.unblock_not_found 'Warning'
+-    }
+-    else {
+-        Write-Status $msg.unblock_running 'Info'
+-
+-        try {
+-            & $unblockPath -Language $Language
+-        }
+-        catch {
+-            Write-Status "Unblock script error: $_" 'Warning'
+-        }
+-    }
+-}
+-
+-# ============================================================================
+-# PHASE 4: EXECUTE MAIN SCRIPT
+-# ============================================================================
+-
+-Write-Phase $msg.phase4
+-
+-Write-Status ($msg.executing -f $ScriptName) 'Info'
+-Write-Host ""
+-
+-try {
+-    if ($WhatIf) {
+-        & $scriptPath -WhatIf
+-    }
+-    else {
+-        & $scriptPath
+-    }
+-
+-    $exitCode = $LASTEXITCODE
+-    if ($null -eq $exitCode) { $exitCode = 0 }
+-}
+-catch {
+-    Write-Status "Exception: $_" 'Error'
+-    $exitCode = 1
+-}
+-
+-# ============================================================================
+-# PHASE 5: RESULT
+-# ============================================================================
+-
+-Write-Host ""
+-Write-Host ("=" * 65) -ForegroundColor DarkGray
+-
+-if ($exitCode -eq 0) {
+-    Write-Status $msg.success 'Success'
+-}
+-else {
+-    Write-Status ($msg.failed -f $exitCode) 'Error'
+-}
+-
+-exit $exitCode
+-
+diff --git a/attic/Start_v0.0.1.ps1 b/attic/Start_v0.0.1.ps1
+deleted file mode 100644
+index 839830a..0000000
+--- a/attic/Start_v0.0.1.ps1
++++ /dev/null
+@@ -1,228 +0,0 @@
+-#!/usr/bin/env powershell
+-# ================================================================
+-#  ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄ 
+-#  █ GrEEV.com KG - EXECUTIONPOLICY FOUNDATION for PS v2.0.0    █
+-#  █ www.greev.com | office@greev.com | Dual Licensed           █
+-#  ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ 
+-#  
+-# Copyright (C) 2026 GrEEV.com KG. All rights reserved.
+-# 
+-# Dual Licensed:
+-# 1. AGPLv3 (Community Edition) - https://www.gnu.org/licenses/agpl-3.0.html
+-#    Free for open source projects and individual use
+-# 2. MIT License (Commercial-Friendly) - https://opensource.org/licenses/MIT
+-#    Permissive for commercial use and SaaS
+-# 
+-# Professional Support available: EUR 499/year
+-# Support: support@greev.com
+-# 
+-# SPDX-License-Identifier: (AGPL-3.0-or-later OR MIT)
+-# ================================================================
+-
+-param(
+-    [string]$ScriptName = "setup.ps1",
+-    [string]$Language = "en",
+-    [switch]$WhatIf = $false,
+-    [switch]$ShowPolicies = $false,
+-    [switch]$Verbose = $false
+-)
+-
+-Set-StrictMode -Version Latest
+-$ErrorActionPreference = "Stop"
+-
+-# ================================================================
+-# CONFIGURATION
+-# ================================================================
+-
+-$Config = @{
+-    ScriptDir       = Split-Path -Parent $MyInvocation.MyCommandPath
+-    ScriptName      = $ScriptName
+-    Language        = if ($Language -eq "de") { "de" } else { "en" }
+-    WhatIfMode      = $WhatIf.IsPresent
+-    ShowPolicies    = $ShowPolicies.IsPresent
+-    VerboseLogging  = $Verbose.IsPresent
+-}
+-
+-# ================================================================
+-# LOCALIZATION (EN / DE)
+-# ================================================================
+-
+-$Strings = @{
+-    en = @{
+-        title              = "ExecutionPolicy Foundation v2.0.0"
+-        subtitle           = "GrEEV.com KG - Dual Licensed (AGPLv3/MIT)"
+-        unblocking         = "Unblocking Zone.Identifier from downloaded files..."
+-        checking_policies  = "Checking ExecutionPolicy..."
+-        policies_locked    = "ExecutionPolicy is locked by Group Policy"
+-        executing_script   = "Executing script: {0}"
+-        error_not_found    = "Script not found: {0}"
+-        error_gpo_locked   = "Cannot bypass Group Policy lock. Contact IT admin."
+-        success            = "Script executed successfully"
+-        whatif_mode        = "WhatIf Mode: Not executing changes"
+-        support_info       = "Professional Support: support@greev.com | EUR 499/year"
+-        license_info       = "License: AGPLv3 (OSS) | MIT (Commercial) | Support"
+-    }
+-    de = @{
+-        title              = "ExecutionPolicy Foundation v2.0.0"
+-        subtitle           = "GrEEV.com KG - Dual Lizenz (AGPLv3/MIT)"
+-        unblocking         = "Zone.Identifier wird von heruntergeladenen Dateien entfernt..."
+-        checking_policies  = "ExecutionPolicy wird überprüft..."
+-        policies_locked    = "ExecutionPolicy ist durch Group Policy gesperrt"
+-        executing_script   = "Script wird ausgeführt: {0}"
+-        error_not_found    = "Script nicht gefunden: {0}"
+-        error_gpo_locked   = "Group Policy-Sperre kann nicht umgangen werden. Kontaktieren Sie IT-Admin."
+-        success            = "Script erfolgreich ausgeführt"
+-        whatif_mode        = "WhatIf Mode: Änderungen werden nicht durchgeführt"
+-        support_info       = "Professional Support: support@greev.com | EUR 499/Jahr"
+-        license_info       = "Lizenz: AGPLv3 (OSS) | MIT (Kommerziell) | Support"
+-    }
+-}
+-
+-$Text = $Strings[$Config.Language]
+-
+-# ================================================================
+-# FUNCTIONS
+-# ================================================================
+-
+-function Write-Header {
+-    Write-Host ""
+-    Write-Host "╔================================================================╗" -ForegroundColor Cyan
+-    Write-Host "║  $($Text.title)" -ForegroundColor Cyan
+-    Write-Host "║  $($Text.subtitle)" -ForegroundColor Cyan
+-    Write-Host "╚================================================================╝" -ForegroundColor Cyan
+-    Write-Host ""
+-}
+-
+-function Get-ExecutionPolicies {
+-    $policies = @{
+-        Scope       = @("MachinePolicy", "UserPolicy", "Process", "CurrentUser", "LocalMachine")
+-        Policies    = @()
+-    }
+-    
+-    foreach ($scope in $policies.Scope) {
+-        $policy = Get-ExecutionPolicy -Scope $scope -ErrorAction SilentlyContinue
+-        $policies.Policies += @{ Scope = $scope; Policy = $policy }
+-    }
+-    
+-    return $policies
+-}
+-
+-function Unblock-FilesInDirectory {
+-    param([string]$Path)
+-    
+-    Write-Host ""
+-    Write-Host $Text.unblocking -ForegroundColor Yellow
+-    
+-    $files = @(Get-ChildItem -Path $Path -Filter "*.ps1" -ErrorAction SilentlyContinue)
+-    
+-    if ($files.Count -eq 0) {
+-        if ($Config.Language -eq "de") {
+-            Write-Host "  Keine .ps1 Dateien gefunden" -ForegroundColor Gray
+-        } else {
+-            Write-Host "  No .ps1 files found" -ForegroundColor Gray
+-        }
+-        return
+-    }
+-    
+-    foreach ($file in $files) {
+-        if ($Config.WhatIfMode) {
+-            Write-Host "  [WhatIf] Unblock: $($file.Name)" -ForegroundColor Gray
+-        } else {
+-            Unblock-File -Path $file.FullName -ErrorAction SilentlyContinue
+-            Write-Host "  ✓ $($file.Name)" -ForegroundColor Green
+-        }
+-    }
+-}
+-
+-function Invoke-MainScript {
+-    $scriptPath = Join-Path $Config.ScriptDir $Config.ScriptName
+-    
+-    if (-not (Test-Path $scriptPath)) {
+-        Write-Host ""
+-        Write-Host "✗ $($Text.error_not_found -f $Config.ScriptName)" -ForegroundColor Red
+-        return $false
+-    }
+-    
+-    Write-Host ""
+-    Write-Host $($Text.executing_script -f $Config.ScriptName) -ForegroundColor Cyan
+-    
+-    if ($Config.WhatIfMode) {
+-        if ($Config.Language -eq "de") {
+-            Write-Host "[WhatIf] Würde ausführen: $scriptPath" -ForegroundColor Yellow
+-        } else {
+-            Write-Host "[WhatIf] Would execute: $scriptPath" -ForegroundColor Yellow
+-        }
+-    } else {
+-        & $scriptPath
+-    }
+-    
+-    return $LASTEXITCODE -eq 0
+-}
+-
+-# ================================================================
+-# MAIN
+-# ================================================================
+-
+-Write-Header
+-
+-# Show current policies if requested
+-if ($Config.ShowPolicies) {
+-    if ($Config.Language -eq "de") {
+-        Write-Host "Aktuelle ExecutionPolicy Einstellungen:" -ForegroundColor Yellow
+-    } else {
+-        Write-Host "Current ExecutionPolicy Settings:" -ForegroundColor Yellow
+-    }
+-    $policies = Get-ExecutionPolicies
+-    foreach ($policy in $policies.Policies) {
+-        Write-Host "  $($policy.Scope): $($policy.Policy)" -ForegroundColor White
+-    }
+-    Write-Host ""
+-}
+-
+-# Check for Group Policy lock
+-Write-Host $Text.checking_policies -ForegroundColor Cyan
+-$machinePolicy = Get-ExecutionPolicy -Scope MachinePolicy -ErrorAction SilentlyContinue
+-if ($machinePolicy -eq "Restricted") {
+-    Write-Host "✗ $($Text.error_gpo_locked)" -ForegroundColor Red
+-    Write-Host ""
+-    if ($Config.Language -eq "de") {
+-        Write-Host "Dieses Skript kann nicht ausgeführt werden, da Group Policy ExecutionPolicy auf Restricted gesperrt hat." -ForegroundColor Yellow
+-        Write-Host "Wenden Sie sich bitte an Ihren IT-Administrator, um eine Richtlinienänderung anzufordern." -ForegroundColor Yellow
+-    } else {
+-        Write-Host "This script cannot run because Group Policy has locked ExecutionPolicy to Restricted." -ForegroundColor Yellow
+-        Write-Host "Please contact your IT administrator to request policy change." -ForegroundColor Yellow
+-    }
+-    exit 1
+-}
+-
+-Write-Host "✓ ExecutionPolicy check passed" -ForegroundColor Green
+-
+-# Unblock files
+-Unblock-FilesInDirectory $Config.ScriptDir
+-
+-# Show WhatIf mode
+-if ($Config.WhatIfMode) {
+-    Write-Host ""
+-    Write-Host $Text.whatif_mode -ForegroundColor Yellow
+-}
+-
+-# Execute main script
+-if (Invoke-MainScript) {
+-    Write-Host ""
+-    Write-Host "✓ $($Text.success)" -ForegroundColor Green
+-    Write-Host ""
+-    Write-Host $Text.support_info -ForegroundColor Gray
+-    Write-Host $Text.license_info -ForegroundColor Gray
+-    Write-Host ""
+-    exit 0
+-} else {
+-    Write-Host ""
+-    if ($Config.Language -eq "de") {
+-        Write-Host "✗ Script-Ausführung fehlgeschlagen" -ForegroundColor Red
+-    } else {
+-        Write-Host "✗ Script execution failed" -ForegroundColor Red
+-    }
+-    Write-Host ""
+-    exit 1
+-}
+-
+diff --git a/attic/unblock-files_v0.0.1.ps1 b/attic/unblock-files_v0.0.1.ps1
+deleted file mode 100644
+index 444896d..0000000
+--- a/attic/unblock-files_v0.0.1.ps1
++++ /dev/null
+@@ -1,216 +0,0 @@
+-<#
+-.SYNOPSIS
+-    Unblock all PowerShell scripts from Zone.Identifier restriction
+-
+-.DESCRIPTION
+-    Recursively scans directory and removes Zone.Identifier:3 marks
+-    that Windows adds to downloaded files (e.g., GitHub ZIP downloads).
+-
+-.PARAMETER Path
+-    Root directory to scan (default: script directory)
+-
+-.PARAMETER Language
+-    Output language: 'en' or 'de' (default: en)
+-
+-.PARAMETER Recursive
+-    Search subdirectories (default: true)
+-
+-.PARAMETER WhatIf
+-    Show what would happen without making changes
+-
+-.EXAMPLE
+-    .\unblock-files_v1.0.0.ps1
+-    .\unblock-files_v1.0.0.ps1 -Language de
+-    .\unblock-files_v1.0.0.ps1 -Path "C:\Projects" -WhatIf
+-    .\unblock-files_v1.0.0.ps1 --version
+-    .\unblock-files_v1.0.0.ps1 --help
+-
+-.NOTES
+-    Version: 1.0.0
+-    Date: 2026-01-18
+-#>
+-
+-[CmdletBinding(SupportsShouldProcess)]
+-param(
+-    [Parameter(Position = 0)]
+-    [string]$Path,
+-
+-    [Parameter(Position = 1)]
+-    [ValidateSet('en', 'de')]
+-    [string]$Language = 'en',
+-
+-    [switch]$Recursive = $true
+-)
+-
+-# ============================================================================
+-# HANDLE --version, --help, --checksum
+-# ============================================================================
+-
+-$script:Config = @{
+-    Name = 'unblock-files'
+-    Version = '1.0.0'
+-    Date = '2026-01-18'
+-}
+-
+-# Check for special flags (before param binding)
+-if ($args -contains '--version') {
+-    Write-Host "$($script:Config.Name) v$($script:Config.Version) $($script:Config.Date)"
+-    exit 0
+-}
+-
+-if ($args -contains '--help') {
+-    Get-Help $MyInvocation.MyCommand.Path -Detailed
+-    exit 0
+-}
+-
+-if ($args -contains '--checksum') {
+-    $hash = Get-FileHash -Path $MyInvocation.MyCommand.Path -Algorithm SHA256
+-    Write-Host $hash.Hash
+-    exit 0
+-}
+-
+-# ============================================================================
+-# CONFIGURATION & STRINGS
+-# ============================================================================
+-
+-if (-not $Path) {
+-    $Path = $PSScriptRoot
+-    if (-not $Path) { $Path = Get-Location }
+-}
+-
+-$script:Strings = @{
+-    en = @{
+-        title = "Unblock-Files v{0}"
+-        scanning = "Scanning for Zone.Identifier marks in: {0}"
+-        found_count = "Found {0} file(s) with Zone.Identifier:3 (Internet)"
+-        found_none = "No files with Zone.Identifier found - all clean"
+-        unblocking = "Unblocking files..."
+-        unblocked = "Unblocked: {0}"
+-        unblock_error = "Failed to unblock: {0} - {1}"
+-        summary = "Summary: {0} scanned, {1} marked, {2} unblocked"
+-        whatif = "[WhatIf] Would unblock: {0}"
+-    }
+-    de = @{
+-        title = "Unblock-Files v{0}"
+-        scanning = "Suche Zone.Identifier-Markierungen in: {0}"
+-        found_count = "{0} Datei(en) mit Zone.Identifier:3 (Internet) gefunden"
+-        found_none = "Keine Dateien mit Zone.Identifier gefunden - alles sauber"
+-        unblocking = "Entsperre Dateien..."
+-        unblocked = "Entsperrt: {0}"
+-        unblock_error = "Fehler beim Entsperren: {0} - {1}"
+-        summary = "Zusammenfassung: {0} geprueft, {1} markiert, {2} entsperrt"
+-        whatif = "[WhatIf] Wuerde entsperren: {0}"
+-    }
+-}
+-
+-$msg = $script:Strings[$Language]
+-
+-# ============================================================================
+-# FUNCTIONS
+-# ============================================================================
+-
+-function Test-ZoneIdentifier {
+-    param([string]$FilePath)
+-
+-    try {
+-        $streams = Get-Item -Path $FilePath -Stream * -ErrorAction SilentlyContinue
+-        return ($streams.Stream -contains 'Zone.Identifier')
+-    }
+-    catch {
+-        return $false
+-    }
+-}
+-
+-function Get-ZoneIdentifierValue {
+-    param([string]$FilePath)
+-
+-    try {
+-        $content = Get-Content -Path $FilePath -Stream Zone.Identifier -ErrorAction SilentlyContinue
+-        $zoneLine = $content | Where-Object { $_ -match '^ZoneId=' }
+-        if ($zoneLine -match 'ZoneId=(\d+)') {
+-            return [int]$Matches[1]
+-        }
+-    }
+-    catch {}
+-
+-    return $null
+-}
+-
+-# ============================================================================
+-# MAIN
+-# ============================================================================
+-
+-Write-Host ""
+-Write-Host ($msg.title -f $script:Config.Version) -ForegroundColor Cyan
+-Write-Host ""
+-
+-# Scan for files
+-Write-Host ($msg.scanning -f $Path) -ForegroundColor Gray
+-
+-$searchParams = @{
+-    Path = $Path
+-    Filter = "*.ps1"
+-    ErrorAction = 'SilentlyContinue'
+-}
+-
+-if ($Recursive) {
+-    $searchParams['Recurse'] = $true
+-}
+-
+-$allFiles = @(Get-ChildItem @searchParams)
+-$markedFiles = @($allFiles | Where-Object { Test-ZoneIdentifier $_.FullName })
+-
+-Write-Host ""
+-
+-if ($markedFiles.Count -eq 0) {
+-    Write-Host "[✓] $($msg.found_none)" -ForegroundColor Green
+-    Write-Host ""
+-    Write-Host ($msg.summary -f $allFiles.Count, 0, 0) -ForegroundColor Gray
+-    exit 0
+-}
+-
+-Write-Host "[!] $($msg.found_count -f $markedFiles.Count)" -ForegroundColor Yellow
+-Write-Host ""
+-
+-# List marked files
+-foreach ($file in $markedFiles) {
+-    $relativePath = $file.FullName.Replace($Path, '').TrimStart('\', '/')
+-    $zoneId = Get-ZoneIdentifierValue $file.FullName
+-    Write-Host "    • $relativePath (ZoneId=$zoneId)" -ForegroundColor DarkYellow
+-}
+-
+-Write-Host ""
+-
+-# Unblock files
+-if ($WhatIf) {
+-    Write-Host "[WhatIf] $($msg.unblocking)" -ForegroundColor Yellow
+-} else {
+-    Write-Host $msg.unblocking -ForegroundColor White
+-}
+-
+-$unblocked = 0
+-foreach ($file in $markedFiles) {
+-    $relativePath = $file.FullName.Replace($Path, '').TrimStart('\', '/')
+-
+-    if ($WhatIf) {
+-        Write-Host "    $($msg.whatif -f $relativePath)" -ForegroundColor Yellow
+-        $unblocked++
+-    }
+-    else {
+-        try {
+-            Unblock-File -Path $file.FullName -ErrorAction Stop
+-            Write-Host "    [✓] $($msg.unblocked -f $relativePath)" -ForegroundColor Green
+-            $unblocked++
+-        }
+-        catch {
+-            Write-Host "    [✗] $($msg.unblock_error -f $relativePath, $_.Exception.Message)" -ForegroundColor Red
+-        }
+-    }
+-}
+-
+-Write-Host ""
+-Write-Host ($msg.summary -f $allFiles.Count, $markedFiles.Count, $unblocked) -ForegroundColor Cyan
+-Write-Host ""
+-
+-exit 0
+-
