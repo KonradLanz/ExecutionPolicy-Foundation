@@ -132,10 +132,12 @@ $Text = $Strings[$Language]
 
 Write-Host ""
 Write-Host "╔════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
+
 # Calculate padding for dynamic box width
 $boxWidth = 60
 $titlePadded = $Text.title.PadRight($boxWidth - 4)
 $subtitlePadded = $Text.subtitle.PadRight($boxWidth - 4)
+
 Write-Host "║  $titlePadded  ║" -ForegroundColor Cyan
 Write-Host "║  $subtitlePadded  ║" -ForegroundColor Cyan
 Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
@@ -302,70 +304,32 @@ if (-not (Test-Path "$TargetDir\.git")) {
 }
 
 # ============================================================
+# CHECK/CREATE GITHUB REPOSITORY (BEFORE COMMIT!)
+# ============================================================
+
+$repoName = "ExecutionPolicy-Foundation"
+Write-Host ""
+Write-Host "  Checking GitHub repository..." -ForegroundColor Cyan
+
+if (Test-CommandExists "gh") {
+    $existingRepo = & gh repo view $repoName --json name 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  ✓ Repository already exists on GitHub" -ForegroundColor Green
+    } else {
+        Write-Host "  ℹ Creating new repository on GitHub..." -ForegroundColor Yellow
+        & gh repo create $repoName --public --source=. --remote=origin --description "Robust PowerShell execution framework with GPO detection and dual licensing" 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  ✓ Repository created successfully" -ForegroundColor Green
+        } else {
+            Write-Host "  ⚠ Repository creation may have failed - continuing anyway" -ForegroundColor Yellow
+        }
+    }
+}
+
+# ============================================================
 # 6. GIT COMMIT & PUSH
 # ============================================================
-function Test-RepositoryExists {
-    param(
-        [string]$Owner,
-        [string]$RepoName
-    )
-    
-    try {
-        $result = gh repo view "$Owner/$RepoName" --json name 2>$null
-        return $?
-    } catch {
-        return $false
-    }
-}
 
-function Create-Repository {
-    param(
-        [string]$RepoName,
-        [bool]$Private = $true
-    )
-    
-    try {
-        Write-Host "  ℹ $($Text.repo_creating)..." -ForegroundColor Yellow
-        
-        $visibility = if ($Private) { "--private" } else { "--public" }
-        
-        # Create repo on GitHub
-        gh repo create $RepoName $visibility --source=. --remote=origin --push 2>&1 | Out-Null
-        
-        if ($?) {
-            Write-Host "  ✓ $($Text.repo_created)" -ForegroundColor Green
-            return $true
-        } else {
-            Write-Host "  ✗ $($Text.repo_error)" -ForegroundColor Red
-            return $false
-        }
-    } catch {
-        Write-Host "  ✗ $($Text.repo_error): $_" -ForegroundColor Red
-        return $false
-    }
-}
-
-    # Check if repo exists
-    if (Test-RepositoryExists -Owner $gitHubUser -RepoName $repoName) {
-	
-					   
-        Write-Host "  ✓ $($Text.repo_exists)" -ForegroundColor Green
-        Write-Host ""
-
-
-        Write-Host "  ℹ $($Text.repo_not_exists)" -ForegroundColor Yellow
-        Write-Host ""
-    } else {
-        
-        if (Create-Repository -RepoName $repoName -Private $true) {
-            Write-Host ""
-            Write-Host "[STEP 7/7] Repository created!" -ForegroundColor Green
-        } else {
-            Write-Host ""
-            Write-Host "[STEP 7/7] Failed to create repository" -ForegroundColor Red
-            exit 1
-        }
-	}										   
 Write-Host ""
 Write-Host $Text.step_6 -ForegroundColor Yellow
 
@@ -395,30 +359,8 @@ License: AGPL-3.0-or-later OR MIT
     
     if (-not $DryRun) {
         Write-Host "  $($Text.pushing_repo)" -ForegroundColor Cyan
-        
-        if (Test-CommandExists "gh") {
-            $repoName = "ExecutionPolicy-Foundation"
-            $existingRepo = & gh repo view $repoName --json name 2>&1
-            
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "  ✓ $($Text.repo_exists)" -ForegroundColor Green
-                & git push -u origin main 2>&1 | Out-Null
-            } else {
-                Write-Host "  Creating new repository..." -ForegroundColor Yellow
-                & gh repo create $repoName `
-                    --public `
-                    --source=. `
-                    --push `
-                    --description "Robust PowerShell execution framework with GPO detection and dual licensing" `
-                    2>&1 | Out-Null
-                
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "  ✓ $($Text.repo_created)" -ForegroundColor Green
-                } else {
-                    Write-Host "  ⚠ $($Text.repo_creation_failed)" -ForegroundColor Yellow
-                }
-            }
-        }
+        & git push -u origin main 2>&1 | Out-Null
+        Write-Host "  ✓ Pushed to GitHub" -ForegroundColor Green
     } else {
         Write-Host "  $($Text.dry_run_mode)" -ForegroundColor Yellow
     }
