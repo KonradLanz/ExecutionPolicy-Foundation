@@ -1,17 +1,17 @@
 @ECHO OFF
-ECHO.
+ECHO(
 ECHO ================================================================
 ECHO GrEEV.com KG - EXECUTIONPOLICY FOUNDATION for PS v2.0.0
 ECHO "www.greev.com | office@greev.com | Dual Licensed"
 ECHO ================================================================
-ECHO
+ECHO(
 ECHO Copyright (C) 2026 GrEEV.com KG. All rights reserved.
-ECHO
+ECHO(
 ECHO Dual Licensed:
 ECHO 1. AGPLv3 (Community Edition) - for OSS projects
 ECHO 2. MIT License (Commercial-Friendly) - for commercial use
 ECHO 3. Professional Support - EUR 499/year
-ECHO
+ECHO(
 ECHO SPDX-License-Identifier: (AGPL-3.0-or-later OR MIT)
 ECHO "Support: support@greev.com | www.greev.com"
 ECHO ================================================================
@@ -52,12 +52,12 @@ REM ================================================================
 REM MAIN EXECUTION
 REM ================================================================
 
-ECHO.
+ECHO(
 ECHO ============================================================
 ECHO ExecutionPolicy Foundation v2.0.0 - GrEEV.com KG
 ECHO Dual Licensed (AGPLv3/MIT) with Professional Support Option
 ECHO ============================================================
-ECHO.
+ECHO(
 
 REM POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command "& '%~dp0Start.ps1' -ScriptName '!SCRIPT_NAME!' -Language '!LANGUAGE!'"
 
@@ -66,7 +66,7 @@ REM POWERSHELL -NoProfile -ExecutionPolicy Bypass -Command "& '%~dp0Start.ps1' -
 
 SET "EXIT_CODE=!ERRORLEVEL!"
 
-ECHO.
+ECHO(
 IF !EXIT_CODE! EQU 0 (
     ECHO ============================================================
     ECHO [OK] Script completed successfully
@@ -77,8 +77,9 @@ IF !EXIT_CODE! EQU 0 (
     ECHO [ERROR] Script failed with exit code !EXIT_CODE!
     ECHO Issues? Contact: office@greev.com
     ECHO ============================================================
-    ECHO.
+    ECHO(
     PAUSE
 )
 
 EXIT /B !EXIT_CODE!
+
