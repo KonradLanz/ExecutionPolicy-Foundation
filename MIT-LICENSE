@@ -22,46 +22,7 @@ SOFTWARE.
 
 ---
 
-## What This Means
+SPDX-License-Identifier: MIT
 
-### You MAY:
-✓ Use for commercial purposes  
-✓ Use for SaaS applications  
-✓ Use closed-source  
-✓ Modify the code  
-✓ Sublicense to others  
-✓ Distribute the software  
-✓ Private and public use  
-
-### You MUST:
-✓ Include the license text  
-✓ Keep copyright notice  
-
-### You CANNOT:
-✗ Hold authors liable  
-✗ Claim authorship  
-✗ Use trademarks  
-
-### No Copyleft:
-Unlike AGPLv3, MIT does NOT require:
-- Source code disclosure
-- Sharing modifications
-- Code being open-source
-
-## When to Use MIT
-
-✓ Commercial software  
-✓ SaaS applications  
-✓ Closed-source projects  
-✓ Proprietary deployments  
-✓ Any use case  
-
-## Full License
-
-Official MIT License: https://opensource.org/licenses/MIT
-
----
-
-Copyright © 2026 GrEEV.com KG. All rights reserved.
-
-This software is licensed under MIT. You are free to use it for any purpose.
+Diese Lizenz gilt wenn du MIT gewählt hast.
+Siehe LICENSE für die vollständige Dual-License-Erklärung.
