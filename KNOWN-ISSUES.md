@@ -9,7 +9,7 @@ conventions that apply to all scripts in this repository and downstream projects
 
 | Suffix | Meaning | Requires |
 |---|---|---|
-| `*.ps1` | Default — PS 5.1 compatible | `powershell.exe` >= 5.1 (built into Windows 10/11) |
+| `*.ps1` | Default - PS 5.1 compatible | `powershell.exe` >= 5.1 (built into Windows 10/11) |
 | `*.pwsh7.ps1` | Requires PowerShell Core | `pwsh.exe` >= 7.x (`winget install Microsoft.PowerShell`) |
 | `*.pwsh74.ps1` | Requires PowerShell 7.4 LTS | `pwsh.exe` >= 7.4 |
 
@@ -33,12 +33,95 @@ This makes it the correct default baseline for bootstrap and diagnostic scripts.
 - `Start-Process -Verb RunAs`
 
 ### What requires PS 7+ (`pwsh.exe`)
-- `ForEach-Object -Parallel` — parallel processing
+- `ForEach-Object -Parallel` -- parallel processing
 - `&&` and `||` pipeline chain operators
-- `Get-Error` — detailed error introspection
+- `Get-Error` -- detailed error introspection
 - `Invoke-WebRequest` improvements (HTTP/2, redirect handling)
 - Ternary operator `$x ? $a : $b`
 - `??=` null coalescing assignment
+- **Null-conditional member access `?.` and `?[]`** (see Gotcha below)
+
+---
+
+## Gotcha: Null-Conditional Member Access `?.` (NEW - found in production 2026-06)
+
+**Symptom:**
+```
+Unerwartetes Token "?.Source" in Ausdruck oder Anweisung.
+    + CategoryInfo : ParserError: (:) [], ParseException
+    + FullyQualifiedErrorId : UnexpectedToken
+```
+
+**Cause:** The null-conditional operators `?.` (member access) and `?[]` (index)
+were introduced in **PowerShell 7.1**. PS 5.1 does not recognise `?.` at all and
+throws a ParseException - the script never runs, not even partially.
+
+**This is a silent PS7 dependency** - the script declares `#Requires -Version 5.1`
+but uses `?.`, making it fail immediately on every stock Windows machine.
+
+**Wrong (PS7-only):**
+```powershell
+$ollamaPath = (Get-Command ollama -ErrorAction SilentlyContinue)?.Source
+```
+
+**Correct (PS 5.1+):**
+```powershell
+$ollamaCmd = Get-Command ollama -ErrorAction SilentlyContinue
+if ($ollamaCmd) {
+    $ollamaPath = $ollamaCmd.Source
+}
+```
+
+**Or with a null coalesce pattern:**
+```powershell
+# PS 5.1 compatible null-coalesce
+$ollamaPath = if ($ollamaCmd) { $ollamaCmd.Source } else { "" }
+```
+
+**Rule:** Never use `?.` or `?[]` in a plain `*.ps1` file.
+Add `?.` to your PS7-only feature list and code review checklist.
+
+---
+
+## Gotcha: Unicode Quotes in Write-Host Strings (NEW - found in production 2026-06)
+
+**Symptom:**
+```
+Die Zeichenfolge hat kein Abschlusszeichen: ".
+    + CategoryInfo : ParserError: (:) [], ParseException
+    + FullyQualifiedErrorId : TerminatorExpectedAtEndOfString
+```
+
+**Cause:** When a `.ps1` file is written or edited by a tool that substitutes
+ASCII double-quotes `"` with Unicode typographic quotes (`\u201C` `"` and `\u201D` `"`),
+PS 5.1 cannot parse the file. PS 7.2+ silently accepts both forms in most contexts,
+masking the bug.
+
+**Affected tools:** GitHub web editor auto-correct, some AI code generation outputs,
+copy-paste from Word / rich-text editors, VS Code with smart-quotes extensions.
+
+**Wrong (breaks PS 5.1):**
+```powershell
+Write-Host "   (ollama list fehlgeschlagen)"   # contains U+201C / U+201D
+```
+
+**Correct (always):**
+```powershell
+Write-Host "   (ollama list fehlgeschlagen)"   # plain ASCII 0x22
+```
+
+**How to detect:** Open the file in VS Code, enable "Show Whitespace / Encoding".
+Or in PowerShell itself:
+```powershell
+# Shows any non-ASCII quote characters in a PS1 file
+Select-String -Path .\script.ps1 -Pattern '[\u201C\u201D\u2018\u2019]'
+```
+
+**Rule:** Always write `.ps1` files with **plain ASCII quotes only**.
+When generating or committing scripts via API / AI tooling, use CRLF line endings
+and verify no Unicode quote substitution occurred.
+The `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` line at the top
+of a script fixes *output* encoding but does **not** fix the source file parser.
 
 ---
 
@@ -136,8 +219,8 @@ Fresh Windows 10/11
 | Component | Version | Ships with | Notes |
 |---|---|---|---|
 | PowerShell 5.1 | 5.1.x | Windows 10, Windows 11 | Baseline. Always available. |
-| PowerShell 7.4 | 7.4.x | — | LTS. Install via winget. |
-| PowerShell 7.5 | 7.5.x | — | Current stable (2025/26). |
+| PowerShell 7.4 | 7.4.x | -- | LTS. Install via winget. |
+| PowerShell 7.5 | 7.5.x | -- | Current stable (2025/26). |
 | winget | 1.x+ | Windows 10 1709+ (via Store update) | Required for tool installs. |
 | Windows Terminal | 1.x+ | Windows 11 (built-in) | Optional on Win10. |
-| git | 2.x+ | — | Install via winget. |
+| git | 2.x+ | -- | Install via winget. |
