@@ -1,4 +1,4 @@
-#!/usr/bin/env powershell
+﻿#!/usr/bin/env powershell
 # ============================================================
 # EXECUTIONPOLICY FOUNDATION - VOLLSTÄNDIGER GITHUB UPLOAD
 # v2.0.0 | GrEEV.com KG | Optimiert für PS 5.1 + 7.5+
