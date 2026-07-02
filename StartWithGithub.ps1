@@ -245,6 +245,16 @@ Write-Host $Text.step_3 -ForegroundColor Yellow
 if (Test-CommandExists "gh") {
     Write-Host "  $($Text.checking_auth)" -ForegroundColor Cyan
     $authStatus = & gh auth status 2>&1
+
+    $authStatus = gh auth status 2>&1
+
+    if ($authStatus -match "Logged in to github.com") {
+        # OK
+    } else {
+        Write-Host "GitHub CLI is not authenticated. Running gh auth login..."
+        gh auth login
+    }
+
     
     if ($LASTEXITCODE -ne 0 -and -not $SkipAuth) {
         Write-Host "  ⚠ $($Text.need_token)" -ForegroundColor Yellow
