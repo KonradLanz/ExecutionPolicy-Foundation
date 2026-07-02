@@ -7,7 +7,8 @@
 param(
     [string]$GitUsername = "KonradLanz",
     [string]$GitEmail = "office@greev.com",
-    [string]$TargetDir = "C:\Users\koni\ExecutionPolicy-Foundation",
+    #[string]$TargetDir = "C:\Users\koni\ExecutionPolicy-Foundation",
+    [string]$TargetDir = (Join-Path ([Environment]::GetFolderPath("UserProfile")) "git/ExecutionPolicy-Foundation"),
     [string]$Language = "en",
     [switch]$SkipInstall = $false,
     [switch]$SkipAuth = $false,
